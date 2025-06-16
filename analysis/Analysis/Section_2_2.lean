@@ -62,7 +62,9 @@ lemma Nat.add_succ (n m:Nat) : n + (m++) = (n + m)++ := by
 
 /-- n++ = n + 1 (Why?) -/
 theorem Nat.succ_eq_add_one (n:Nat) : n++ = n + 1 := by
-  sorry
+  rw [← zero_succ]
+  rw [add_succ]
+  rw [add_zero]
 
 /-- Proposition 2.2.4 (Addition is commutative) -/
 theorem Nat.add_comm (n m:Nat) : n + m = m + n := by
@@ -75,7 +77,11 @@ theorem Nat.add_comm (n m:Nat) : n + m = m + n := by
 
 /-- Proposition 2.2.5 (Addition is associative) / Exercise 2.2.1-/
 theorem Nat.add_assoc (a b c:Nat) : (a + b) + c = a + (b + c) := by
-  sorry
+  -- this proof is written to follow the structure of the original text.
+  revert a; apply induction
+  . rw [zero_add, zero_add]
+  . intro a ih
+    rw [succ_add, succ_add, succ_add, ih]
 
 /-- Proposition 2.2.6 (Cancellation law) -/
 theorem Nat.add_cancel_left (a b c:Nat) (habc: a + b = a + c) : b = c := by
@@ -132,7 +138,24 @@ theorem Nat.add_eq_zero (a b:Nat) (hab: a + b = 0) : a = 0 ∧ b = 0 := by
 
 /-- Lemma 2.2.10 (unique predecessor) / Exercise 2.2.2 -/
 lemma Nat.uniq_succ_eq (a:Nat) (ha: a.isPos) : ∃! b, b++ = a := by
-  sorry
+  -- this proof is written to follow the structure of the original text.
+  -- Since a is positive, a ≠ 0, so a must be of the form n++ for some n
+  rw [isPos_iff] at ha
+  -- Use induction on the structure of a
+  induction a with
+  | zero =>
+    -- This case is impossible since ha : 0 ≠ 0
+    contradiction
+  | succ n =>
+    -- For a = n++, we have b = n is the unique predecessor
+    use n
+    constructor
+    · -- Existence: n++ = n++
+      rfl
+    · -- Uniqueness: if b++ = n++, then b = n
+      intro b hb
+      exact succ_cancel hb
+
 
 /-- Definition 2.2.11 (Ordering of the natural numbers) -/
 instance Nat.instLE : LE Nat where
