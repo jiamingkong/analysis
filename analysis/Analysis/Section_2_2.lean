@@ -442,9 +442,47 @@ instance Nat.decidableRel : DecidableRel (· ≤ · : Nat → Nat → Prop) := N
 instance Nat.linearOrder : LinearOrder Nat where
   le_refl := ge_refl
   le_trans a b c hab hbc := ge_trans hbc hab
-  lt_iff_le_not_le := sorry
+  lt_iff_le_not_le := by
+    intro a b
+    constructor
+    · -- Forward: a < b → a ≤ b ∧ ¬ b ≤ a
+      intro h
+      constructor
+      · exact Nat.le_of_lt h
+      · intro hba
+        -- We have a < b and b ≤ a, which gives a = b by antisymmetry
+        have : a = b := ge_antisymm hba (Nat.le_of_lt h)
+        -- But a ≠ b from a < b
+        exact Nat.ne_of_lt _ _ h this
+    · -- Reverse: a ≤ b ∧ ¬ b ≤ a → a < b
+      intro ⟨hab, hnba⟩
+      -- Use trichotomy: either a < b, a = b, or a > b
+      rcases trichotomous a b with h | h | h
+      · exact h
+      · -- Case a = b: but then b ≤ a, contradicting ¬ b ≤ a
+        exfalso
+        apply hnba
+        rw [h]
+        exact ge_refl _
+      · -- Case a > b: but then b ≤ a, contradicting ¬ b ≤ a
+        exfalso
+        apply hnba
+        exact Nat.le_of_lt h
   le_antisymm a b hab hba := ge_antisymm hba hab
-  le_total := sorry
+  le_total := by
+    intro a b
+    -- Use trichotomy
+    rcases trichotomous a b with h | h | h
+    · -- Case a < b: then a ≤ b
+      left
+      exact Nat.le_of_lt h
+    · -- Case a = b: then a ≤ b
+      left
+      rw [h]
+      exact ge_refl _
+    · -- Case a > b: then b ≤ a
+      right
+      exact Nat.le_of_lt h
   toDecidableLE := decidableRel
 
 /-- (Not from textbook) Nat has the structure of an ordered monoid. -/
