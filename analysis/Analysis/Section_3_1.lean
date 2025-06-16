@@ -100,9 +100,11 @@ instance SetTheory.Set.instEmpty : EmptyCollection Set where
 @[simp]
 theorem SetTheory.Set.not_mem_empty : ∀ x, x ∉ (∅:Set) := SetTheory.emptyset_mem
 
-/-- Empty set has no elements -/
-theorem SetTheory.Set.eq_empty_iff_forall_notMem {X:Set} : X = ∅ ↔ (∀ x, x ∉ X) := by
-  sorry
+/-- Empty set is unique -/
+theorem SetTheory.Set.eq_empty_iff_forall_notMem {X:Set} : X = ∅ ↔ (∀ x, ¬ x ∈ X) := by
+  constructor
+  . intro h; subst h; simp
+  . intro h; apply ext; intro x; simp [h x]
 
 /-- Empty set is unique -/
 theorem SetTheory.Set.empty_unique : ∃! (X:Set), ∀ x, x ∉ X := by
@@ -154,7 +156,8 @@ theorem SetTheory.Set.mem_triple (x a b:Object) : x ∈ ({a,b,c}:Set) ↔ (x = a
   simp [Insert.insert, mem_union, mem_singleton]
 
 /-- Remark 3.1.8 -/
-theorem SetTheory.Set.singleton_uniq (a:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a := by sorry
+theorem SetTheory.Set.singleton_uniq (a:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a := by
+  sorry
 
 /-- Remark 3.1.8 -/
 theorem SetTheory.Set.pair_uniq (a b:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a ∨ x = b := by sorry
