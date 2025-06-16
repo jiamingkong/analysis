@@ -192,25 +192,83 @@ example : (8:Nat) > 5 := by
   decide
 
 theorem Nat.succ_gt (n:Nat) : n++ > n := by
-  sorry
+  rw [Nat.gt_iff_lt, Nat.lt_iff]
+  constructor
+  . use 1
+    rw [Nat.succ_eq_add_one]
+  . intro h
+    -- We need to show n ≠ n++, so we assume n = n++ and derive a contradiction
+    -- We can prove by induction that no natural number equals its successor
+    induction n with
+    | zero =>
+      -- Case n = 0: we have 0 = 0++, but 0++ ≠ 0 by succ_ne
+      have := succ_ne 0
+      exact this h.symm
+    | succ k ih =>
+      -- Case n = k++: we have k++ = (k++)++, so k = k++ by succ_cancel
+      have : k = k++ := succ_cancel h
+      exact ih this
 
 /-- Proposition 2.2.12 (Basic properties of order for natural numbers) / Exercise 2.2.3
 
 (a) (Order is reflexive). -/
 theorem Nat.ge_refl (a:Nat) : a ≥ a := by
-  sorry
+  use 0
+  rw [add_zero]
 
 /-- (b) (Order is transitive) -/
 theorem Nat.ge_trans {a b c:Nat} (hab: a ≥ b) (hbc: b ≥ c) : a ≥ c := by
-  sorry
+  rcases hab with ⟨d, rfl⟩
+  rcases hbc with ⟨e, rfl⟩
+  use e + d
+  rw [Nat.add_assoc]
 
 /-- (c) (Order is anti-symmetric)  -/
 theorem Nat.ge_antisymm {a b:Nat} (hab: a ≥ b) (hba: b ≥ a) : a = b := by
-  sorry
+  rcases hab with ⟨d, had⟩
+  rcases hba with ⟨e, hbe⟩
+  -- we now have a = b + d and b = a + e
+  -- Substituting the first into the second: b = (b + d) + e = b + (d + e)
+  rw [had] at hbe
+  rw [Nat.add_assoc] at hbe
+  -- So b = b + (d + e). We want to show d + e = 0
+  have h_zero : d + e = 0 := by
+    -- From b = b + (d + e), we get b + 0 = b + (d + e) since b + 0 = b
+    have : b + (d + e) = b + 0 := hbe ▸ (Nat.add_zero b).symm
+    exact Nat.add_cancel_left _ _ _ this
+  -- Since d + e = 0, both d = 0 and e = 0
+  have ⟨hd, he⟩ := Nat.add_eq_zero _ _ h_zero
+  -- Therefore a = b + 0 = b
+  rw [had, hd, Nat.add_zero]
 
 /-- (d) (Addition preserves order)  -/
 theorem Nat.add_ge_add_right (a b c:Nat) : a ≥ b ↔ a + c ≥ b + c := by
-  sorry
+  constructor
+  · -- Forward direction: a ≥ b → a + c ≥ b + c
+    intro hab
+    rcases hab with ⟨d, hd⟩
+    -- We have a = b + d, so a + c = (b + d) + c = b + (d + c) = b + c + d
+    use d
+    calc a + c
+      = (b + d) + c := by rw [hd]
+      _ = b + (d + c) := by rw [Nat.add_assoc]
+      _ = b + (c + d) := by rw [Nat.add_comm d c]
+      _ = (b + c) + d := by rw [← Nat.add_assoc]
+  · -- Reverse direction: a + c ≥ b + c → a ≥ b
+    intro habc
+    rcases habc with ⟨d, hd⟩
+    -- We have a + c = (b + c) + d = b + c + d
+    use d
+    -- We need to show a = b + d from a + c = b + c + d
+    -- Use cancellation: a + c = b + c + d implies a + c = (b + d) + c
+    have : a + c = (b + d) + c := calc a + c
+      = (b + c) + d := hd
+      _ = b + (c + d) := by rw [Nat.add_assoc]
+      _ = b + (d + c) := by rw [Nat.add_comm c d]
+      _ = (b + d) + c := by rw [← Nat.add_assoc]
+    -- Now we have c + a = c + (b + d), so a = b + d by cancellation
+    have h_cancel : c + a = c + (b + d) := by rw [Nat.add_comm c a, this, Nat.add_comm (b + d) c]
+    exact Nat.add_cancel_left _ _ _ h_cancel
 
 /-- (d) (Addition preserves order)  -/
 theorem Nat.add_ge_add_left (a b c:Nat) : a ≥ b ↔ c + a ≥ c + b := by
@@ -225,11 +283,93 @@ theorem Nat.add_le_add_left (a b c:Nat) : a ≤ b ↔ c + a ≤ c + b := add_ge_
 
 /-- (e) a < b iff a++ ≤ b. -/
 theorem Nat.lt_iff_succ_le (a b:Nat) : a < b ↔ a++ ≤ b := by
-  sorry
+  constructor
+  · -- Forward direction: a < b → a++ ≤ b
+    intro hab
+    rcases hab with ⟨⟨d, hd⟩, hne⟩
+    -- Since a ≠ b and b = a + d, we must have d > 0
+    have hd_pos : d.isPos := by
+      rw [isPos_iff]
+      intro hd_zero
+      rw [hd_zero, Nat.add_zero] at hd
+      exact hne hd.symm
+    -- Since d > 0, we can write d = e++ for some e
+    obtain ⟨e, he_eq, _⟩ := uniq_succ_eq d hd_pos
+    use e
+    -- Now b = a + d = a + e++ = a++ + e
+    calc b
+      = a + d := hd
+      _ = a + e++ := by rw [← he_eq]
+      _ = a + (e + 1) := by rw [Nat.succ_eq_add_one]
+      _ = (a + e) + 1 := by rw [Nat.add_assoc]
+      _ = 1 + (a + e) := by rw [Nat.add_comm]
+      _ = 1 + a + e := by rw [← Nat.add_assoc]
+      _ = a + 1 + e := by rw [Nat.add_comm 1 a]
+      _ = a++ + e := by rw [← Nat.succ_eq_add_one]
+  · -- Reverse direction: a++ ≤ b → a < b
+    intro h_succ_le
+    rcases h_succ_le with ⟨e, he⟩
+    constructor
+    · use 1 + e
+      rw [he, Nat.succ_eq_add_one, Nat.add_assoc]
+    · intro h_eq
+      -- If a = b, then b = a++ + e gives us a = a++ + e
+      have h_absurd : a = a++ + e := by
+        calc a
+          = b := h_eq
+          _ = a++ + e := he
+      -- Since a++ = a + 1, we have a = (a + 1) + e = a + (1 + e)
+      rw [Nat.succ_eq_add_one, Nat.add_assoc] at h_absurd
+      -- By cancellation: 0 = 1 + e
+      have h_zero : 0 = 1 + e := Nat.add_cancel_left _ _ _ (by rw [Nat.add_zero]; exact h_absurd)
+      -- But 1 + e ≠ 0, contradiction
+      exfalso
+      -- Since 1 ≠ 0, we have 1 + e ≠ 0
+      have : 1 + e ≠ 0 := by
+        intro h_contra
+        -- From h_zero: 0 = 1 + e and h_contra: 1 + e = 0
+        -- We can show this is impossible by cases on e
+        cases e with
+        | zero =>
+          -- If e = 0, then 1 + e = 1 ≠ 0
+          simp at h_contra
+        | succ e' =>
+          -- If e = e'++, then 1 + e = 1 + e'++ ≠ 0
+          simp at h_contra
+      exact this h_zero.symm
 
 /-- (f) a < b if and only if b = a + d for positive d. -/
 theorem Nat.lt_iff_add_pos (a b:Nat) : a < b ↔ ∃ d:Nat, d.isPos ∧ b = a + d := by
-  sorry
+  constructor
+  . intro h
+    rcases h with ⟨⟨d, hd⟩, hne⟩
+    -- Since a < b, we have d > 0
+    have hd_pos : d.isPos := by
+      rw [isPos_iff]
+      intro hd_zero
+      rw [hd_zero, Nat.add_zero] at hd
+      exact hne hd.symm
+    use d, hd_pos, hd
+  · intro h
+    rcases h with ⟨d, hd_pos, hd_eq⟩
+    -- We have b = a + d and d > 0
+    constructor
+    · -- Show a ≤ b
+      use d, hd_eq
+    · -- Show a ≠ b
+      intro h_eq
+      -- If a = b, then a = a + d, so 0 = d by cancellation
+      have h_zero : 0 = d := by
+        have : a + 0 = a + d := by
+          calc a + 0
+            = a := Nat.add_zero _
+            _ = b := h_eq
+            _ = a + d := hd_eq
+        exact Nat.add_cancel_left _ _ _ this
+      -- But d > 0, contradiction
+      rw [isPos_iff] at hd_pos
+      exact hd_pos h_zero.symm
+
 
 /-- If a < b then a ̸= b,-/
 theorem Nat.ne_of_lt (a b:Nat) : a < b → a ≠ b := by
@@ -252,7 +392,8 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
   -- this proof is written to follow the structure of the original text.
   revert a; apply induction
   . have why : 0 ≤ b := by
-      sorry
+      use b
+      rw [Nat.zero_add]
     replace why := (Nat.le_iff_lt_or_eq _ _).mp why
     tauto
   intro a ih
@@ -260,16 +401,26 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
   . rw [lt_iff_succ_le] at case1
     rw [Nat.le_iff_lt_or_eq] at case1
     tauto
-  . have why : a++ > b := by sorry
+  . have why : a++ > b := by
+      rw [← case2]
+      exact Nat.succ_gt a
     tauto
-  have why : a++ > b := by sorry
+  have why : a++ > b := by
+    rw [succ_eq_add_one]
+    rw [gt_iff_lt, lt_iff_succ_le] at case3
+    rcases case3 with ⟨ d, hd_eq ⟩
+    rw [hd_eq]
+    rw [gt_iff_lt, lt_iff_succ_le]
+    use d+1
+    rw [add_assoc]
   tauto
 
 /-- (Not from textbook) Establish the decidability of this order computably.  The portion of the proof involving decidability has been provided; the remaining sorries involve claims about the natural numbers.  One could also have established this result by the `classical` tactic followed by `exact Classical.decRel _`, but this would make this definition (as well as some instances below) noncomputable. -/
 def Nat.le_dec : (a b : Nat) → Decidable (a ≤ b)
   | 0, b => by
     apply isTrue
-    sorry
+    use b
+    rw [Nat.zero_add]
   | a++, b => by
     cases le_dec a b with
     | isTrue h =>
