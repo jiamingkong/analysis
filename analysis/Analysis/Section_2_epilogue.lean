@@ -40,13 +40,43 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
   map_add' := by
     intro n m
-    simp [equivNat]
-    sorry
+    induction' n with n ih
+    · -- zero case: (zero + m).toNat = zero.toNat + m.toNat
+      simp [equivNat]
+      have zero_add_rfl : (zero + m).toNat = m.toNat := by
+        induction' m with m'
+        . rfl
+        . simp [succ_toNat]
+      rw [zero_add_rfl]
+
+    · -- succ case: (succ n + m).toNat = (succ n).toNat + m.toNat
+      simp [equivNat]
+      simp [equivNat] at ih
+      rw [succ_add, succ_toNat, succ_toNat, ih]
+      ring
   map_mul' := by
     intro n m
     simp [equivNat]
+    induction' n with n ih
+    . simp [zero_mul]
+    . rw [succ_mul, succ_toNat]
+      -- We need: (n * m + m).toNat = (n.toNat + 1) * m.toNat
+      -- First show that toNat preserves addition
+      have add_toNat : ∀ a b : Chapter2.Nat, (a + b).toNat = a.toNat + b.toNat := by
+        intro a b
+        induction' a with a' ha'
+        . -- zero case: (zero + b).toNat = b.toNat
+          have zero_add_rfl : (zero + b).toNat = b.toNat := by
+            induction' b with m'
+            . rfl
+            . simp [succ_toNat]
+          simp [toNat, zero_add, zero_add_rfl]
+        . rw [succ_add, succ_toNat, succ_toNat, ha']
+          ring
+      rw [add_toNat, ih]
+      ring
+  map_le_map_iff' := by
     sorry
-  map_le_map_iff' := by sorry
 
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) : n.toNat ^ m.toNat = n^m := by
   sorry

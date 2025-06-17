@@ -520,73 +520,75 @@ instance Nat.isOrderedAddMonoid : IsOrderedAddMonoid Nat where
 /-- Proposition 2.2.14 (Strong principle of induction) / Exercise 2.2.5
 -/
 theorem Nat.strong_induction {m₀:Nat} {P: Nat → Prop} (hind: ∀ m, m ≥ m₀ → (∀ m', m₀ ≤ m' ∧ m' < m → P m') → P m) : ∀ m, m ≥ m₀ → P m := by
-  intro m hm
-  -- We'll use regular induction on m, but in the inductive step we'll need to be careful
-  revert hm
-  revert m
-  apply induction
-  · -- Base case: m = 0
-    intro h0_ge_m0
-    apply hind 0 h0_ge_m0
-    intro m' ⟨hm'_ge_m0, hm'_lt_0⟩
-    -- m' < 0 is impossible for natural numbers
-    exfalso
-    have : m' ≥ 0 := by use m'; rw [zero_add]
-    have : m' = 0 := ge_antisymm this (le_of_lt hm'_lt_0)
-    rw [this] at hm'_lt_0
-    exact (ne_of_lt 0 0 hm'_lt_0) rfl
+  -- We prove by strong induction that for all k ≥ m₀, P k holds
+  -- The key idea is to use regular induction with a stronger inductive hypothesis
+  have aux : ∀ n, ∀ m, m₀ ≤ m ∧ m ≤ n → P m := by
+    apply induction
+    · -- Base case: n = 0
+      intro m ⟨hm_ge_m0, hm_le_0⟩
+      -- Since m ≤ 0 and m is a natural number, we have m = 0
+      have hm_eq_0 : m = 0 := by
+        have : m ≥ 0 := by use m; rw [zero_add]
+        exact ge_antisymm this hm_le_0
+      rw [hm_eq_0] at hm_ge_m0
+      rw [hm_eq_0]
+      -- Apply the induction principle for m = 0
+      apply hind 0 hm_ge_m0
+      intro m' ⟨hm'_ge_m0, hm'_lt_0⟩
+      -- This is impossible since no natural number is < 0
+      exfalso
+      have : m' ≥ 0 := by use m'; rw [zero_add]
+      have : m' = 0 := ge_antisymm this (le_of_lt hm'_lt_0)
+      rw [this] at hm'_lt_0
+      exact (ne_of_lt 0 0 hm'_lt_0) rfl
 
-  · -- Inductive step: assume statement holds for n, prove for n++
-    intro n ih
-    intro hn_succ_ge_m0
-    apply hind (n++) hn_succ_ge_m0
-    intro m' ⟨hm'_ge_m0, hm'_lt_succ⟩
-    -- We need to show P(m') where m₀ ≤ m' < n++
-    -- From m' < n++, we have m' ≤ n
-    have hm'_le_n : m' ≤ n := by
-      -- We prove by trichotomy on m' vs n
-      rcases trichotomous m' n with h1 | h2 | h3
-      · -- m' < n: then clearly m' ≤ n
-        exact le_of_lt h1
-      · -- m' = n: then m' ≤ n
-        rw [h2]
-      · -- m' > n: then m' ≥ n++, contradicting m' < n++
-        exfalso
-        have : m' ≥ n++ := by
-          rw [gt_iff_lt] at h3
-          rw [lt_iff_succ_le] at h3
-          exact h3
-        exact (ne_of_lt _ _ hm'_lt_succ) (ge_antisymm this (le_of_lt hm'_lt_succ))
+    · -- Inductive step: assume property holds for all m ≤ n, prove for all m ≤ n++
+      intro n ih_n
+      intro m ⟨hm_ge_m0, hm_le_n_succ⟩
+      -- Case analysis: either m ≤ n or m = n++
+      by_cases h : m ≤ n
+      · -- Case m ≤ n: use inductive hypothesis
+        exact ih_n m ⟨hm_ge_m0, h⟩
+      · -- Case m > n: then m ≥ n++ and m ≤ n++, so m = n++
+        have hm_gt_n : m > n := by
+          rw [not_le] at h
+          exact h
+        have hm_eq_n_succ : m = n++ := by
+          have : m ≥ n++ := by
+            rw [gt_iff_lt] at hm_gt_n
+            rw [lt_iff_succ_le] at hm_gt_n
+            exact hm_gt_n
+          exact le_antisymm hm_le_n_succ this
+        rw [hm_eq_n_succ]
+        -- Apply the strong induction principle for m = n++
+        -- First we need to show n++ ≥ m₀
+        have hn_succ_ge_m0 : n++ ≥ m₀ := by
+          rw [← hm_eq_n_succ]
+          exact hm_ge_m0
+        apply hind (n++) hn_succ_ge_m0
+        intro m' ⟨hm'_ge_m0, hm'_lt_n_succ⟩
+        -- We need to show P m' where m₀ ≤ m' < n++
+        -- Since m' < n++, we have m' ≤ n
+        have hm'_le_n : m' ≤ n := by
+          -- From m' < n++, we either have m' ≤ n or m' = n++, but the latter is impossible
+          by_contra h_not
+          -- If ¬(m' ≤ n), then m' > n, so m' ≥ n++
+          have : m' > n := by
+            rw [not_le] at h_not
+            exact h_not
+          have : m' ≥ n++ := by
+            rw [gt_iff_lt] at this
+            rw [lt_iff_succ_le] at this
+            exact this
+          -- But this contradicts m' < n++
+          have : m' ≥ n++ := this
+          exact (ne_of_lt _ _ hm'_lt_n_succ) (ge_antisymm this (le_of_lt hm'_lt_n_succ))
+        -- Apply the inductive hypothesis
+        exact ih_n m' ⟨hm'_ge_m0, hm'_le_n⟩
 
-    -- Now apply the induction hypothesis to m'
-    -- We need to show n ≥ m₀, which follows from n++ ≥ m₀
-    have hn_ge_m0 : n ≥ m₀ := by
-      -- If n < m₀, then n++ ≤ m₀, so n++ = m₀ (since n++ ≥ m₀)
-      by_contra h_not
-      -- h_not : ¬(n ≥ m₀), so by trichotomy n < m₀
-      have hn_lt_m0 : n < m₀ := by
-        rcases trichotomous n m₀ with h1 | h2 | h3
-        · exact h1
-        · exfalso; rw [h2] at h_not; exact h_not (ge_refl m₀)
-        · exfalso; exact h_not (le_of_lt h3)
-      -- From n < m₀, we get n++ ≤ m₀
-      have : n++ ≤ m₀ := by
-        rw [lt_iff_succ_le] at hn_lt_m0
-        exact hn_lt_m0
-      -- Combined with n++ ≥ m₀, we get n++ = m₀
-      have : n++ = m₀ := ge_antisymm hn_succ_ge_m0 this
-      -- But then m' ≥ m₀ = n++ and m' < n++, contradiction
-      rw [← this] at hm'_ge_m0
-      exact (ne_of_lt _ _ hm'_lt_succ) (ge_antisymm hm'_ge_m0 (le_of_lt hm'_lt_succ))
-
-    -- Now we can apply the induction hypothesis if m' < n
-    -- or directly use P(n) if m' = n
-    rcases Decidable.eq_or_lt_of_le hm'_le_n with h_eq | h_lt
-    · -- Case m' = n: we already have P(n)
-      rw [h_eq]
-      exact ih hn_ge_m0
-    · -- Case m' < n: apply induction hypothesis
-      sorry
+  -- Now use the auxiliary result
+  intro m hm_ge_m0
+  exact aux m m ⟨hm_ge_m0, le_refl m⟩
 
 /-- Exercise 2.2.6 (backwards induction) -/
 theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}  (hind: ∀ m, P (m++) → P m) (hn: P n) : ∀ m, m ≤ n → P m := by
@@ -639,28 +641,29 @@ theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}  (hind: ∀ m, P (m++)
 /-- Exercise 2.2.7 (induction from a starting point) -/
 theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m++)) : P n → ∀ m, m ≥ n → P m := by
   intro hn m hm_ge_n
-  -- We'll use induction on m starting from n
-  -- The idea is to prove by induction that for all k ≥ 0, P(n + k)
+  -- We use strong induction on the "excess" k = m - n
+  -- Since m ≥ n, we can write m = n + k for some k
 
-  -- First, express m as n + k for some k
-  obtain ⟨k, hk⟩ := hm_ge_n
-  rw [hk]
+  -- We'll prove this by induction on m itself, but only for m ≥ n
+  suffices h : ∀ k, P (n + k) by
+    obtain ⟨k, hk⟩ := hm_ge_n
+    rw [hk]
+    exact h k
 
-  -- Now prove by induction on k that P(n + k)
-  revert hk
-  revert k
-  apply induction
-  · -- Base case: k = 0
-    intro hk
-    rw [add_zero] at hk
-    rw [← hk]
-    rw [add_zero, hk]
+  -- Prove by induction on k that P(n + k)
+  intro k
+  induction k with
+  | zero =>
+    -- Base case: P(n + 0) = P(n)
+    show P (n + 0)
+    rw [Nat.add_zero]
     exact hn
-
-  · -- Inductive step: P(n + k) → P(n + k++)
-    intro k ih
-    intro ihk
-    sorry
+  | succ k' ih_k' =>
+    -- Inductive step: P(n + k') → P(n + k'++)
+    -- We have P(n + k') from ih_k'
+    -- We want P(n + k'++) = P((n + k')++)
+    rw [add_succ]
+    exact hind (n + k') ih_k'
 
 
 end Chapter2
