@@ -287,7 +287,9 @@ theorem Sequence.lim_harmonic : ((fun (n:ℕ) ↦ (n+1:ℝ)⁻¹):Sequence).conv
 
 /-- Proposition 6.1.12 / Exercise 6.1.5 -/
 theorem Sequence.Cauchy_of_convergent {a:Sequence} (h:a.convergent) : a.isCauchy := by
-  sorry
+  rw [convergent_def] at h
+  rw [isCauchy_def]
+
 
 /-- Example 6.1.13 -/
 example : ¬ (0.1:ℝ).eventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by sorry

@@ -425,15 +425,41 @@ def Nat.le_dec : (a b : Nat) → Decidable (a ≤ b)
     cases le_dec a b with
     | isTrue h =>
       cases decEq a b with
-      | isTrue h =>
+      | isTrue h_eq =>
         apply isFalse
-        sorry
-      | isFalse h =>
+        intro h_succ_le
+        -- If a = b, then h_succ_le : a++ ≤ b becomes a++ ≤ a
+        -- This contradicts a < a++
+        have h_a_lt_succ : a < a++ := succ_gt a
+        have h_succ_ge_a : a++ ≥ a := le_of_lt h_a_lt_succ
+        -- From h_eq : a = b and h_succ_le : a++ ≤ b, we get a++ ≤ a
+        have h_contra : a++ ≤ a := by
+          rw [← h_eq] at h_succ_le
+          exact h_succ_le
+        -- But a < a++ means a ≤ a++, so we have a++ ≤ a ≤ a++
+        have h_a_le_succ : a ≤ a++ := le_of_lt h_a_lt_succ
+        -- By antisymmetry: a++ = a
+        have h_eq_bad : a++ = a := ge_antisymm h_succ_ge_a h_contra
+        -- But this contradicts the fact that a++ ≠ a
+        have h_ne : a++ ≠ a := by
+          -- This follows from the fact that a < a++
+          have h_a_lt_succ : a < a++ := succ_gt a
+          exact (ne_of_lt _ _ h_a_lt_succ).symm
+        exact h_ne h_eq_bad
+      | isFalse h_ne =>
         apply isTrue
-        sorry
-    | isFalse h =>
+        -- If a ≤ b and a ≠ b, then a < b, so a++ ≤ b
+        have h_lt : a < b := by
+          rw [le_iff_lt_or_eq] at h
+          exact h.resolve_right h_ne
+        exact (lt_iff_succ_le _ _).mp h_lt
+    | isFalse h_not_le =>
       apply isFalse
-      sorry
+      intro h_succ_le
+      -- If ¬(a ≤ b) but a++ ≤ b, then a < a++ ≤ b implies a ≤ b
+      have h_a_lt_succ : a < a++ := succ_gt a
+      have h_a_le_b : a ≤ b := ge_trans h_succ_le (le_of_lt h_a_lt_succ)
+      exact h_not_le h_a_le_b
 
 instance Nat.decidableRel : DecidableRel (· ≤ · : Nat → Nat → Prop) := Nat.le_dec
 
@@ -494,16 +520,147 @@ instance Nat.isOrderedAddMonoid : IsOrderedAddMonoid Nat where
 /-- Proposition 2.2.14 (Strong principle of induction) / Exercise 2.2.5
 -/
 theorem Nat.strong_induction {m₀:Nat} {P: Nat → Prop} (hind: ∀ m, m ≥ m₀ → (∀ m', m₀ ≤ m' ∧ m' < m → P m') → P m) : ∀ m, m ≥ m₀ → P m := by
-  sorry
+  intro m hm
+  -- We'll use regular induction on m, but in the inductive step we'll need to be careful
+  revert hm
+  revert m
+  apply induction
+  · -- Base case: m = 0
+    intro h0_ge_m0
+    apply hind 0 h0_ge_m0
+    intro m' ⟨hm'_ge_m0, hm'_lt_0⟩
+    -- m' < 0 is impossible for natural numbers
+    exfalso
+    have : m' ≥ 0 := by use m'; rw [zero_add]
+    have : m' = 0 := ge_antisymm this (le_of_lt hm'_lt_0)
+    rw [this] at hm'_lt_0
+    exact (ne_of_lt 0 0 hm'_lt_0) rfl
+
+  · -- Inductive step: assume statement holds for n, prove for n++
+    intro n ih
+    intro hn_succ_ge_m0
+    apply hind (n++) hn_succ_ge_m0
+    intro m' ⟨hm'_ge_m0, hm'_lt_succ⟩
+    -- We need to show P(m') where m₀ ≤ m' < n++
+    -- From m' < n++, we have m' ≤ n
+    have hm'_le_n : m' ≤ n := by
+      -- We prove by trichotomy on m' vs n
+      rcases trichotomous m' n with h1 | h2 | h3
+      · -- m' < n: then clearly m' ≤ n
+        exact le_of_lt h1
+      · -- m' = n: then m' ≤ n
+        rw [h2]
+      · -- m' > n: then m' ≥ n++, contradicting m' < n++
+        exfalso
+        have : m' ≥ n++ := by
+          rw [gt_iff_lt] at h3
+          rw [lt_iff_succ_le] at h3
+          exact h3
+        exact (ne_of_lt _ _ hm'_lt_succ) (ge_antisymm this (le_of_lt hm'_lt_succ))
+
+    -- Now apply the induction hypothesis to m'
+    -- We need to show n ≥ m₀, which follows from n++ ≥ m₀
+    have hn_ge_m0 : n ≥ m₀ := by
+      -- If n < m₀, then n++ ≤ m₀, so n++ = m₀ (since n++ ≥ m₀)
+      by_contra h_not
+      -- h_not : ¬(n ≥ m₀), so by trichotomy n < m₀
+      have hn_lt_m0 : n < m₀ := by
+        rcases trichotomous n m₀ with h1 | h2 | h3
+        · exact h1
+        · exfalso; rw [h2] at h_not; exact h_not (ge_refl m₀)
+        · exfalso; exact h_not (le_of_lt h3)
+      -- From n < m₀, we get n++ ≤ m₀
+      have : n++ ≤ m₀ := by
+        rw [lt_iff_succ_le] at hn_lt_m0
+        exact hn_lt_m0
+      -- Combined with n++ ≥ m₀, we get n++ = m₀
+      have : n++ = m₀ := ge_antisymm hn_succ_ge_m0 this
+      -- But then m' ≥ m₀ = n++ and m' < n++, contradiction
+      rw [← this] at hm'_ge_m0
+      exact (ne_of_lt _ _ hm'_lt_succ) (ge_antisymm hm'_ge_m0 (le_of_lt hm'_lt_succ))
+
+    -- Now we can apply the induction hypothesis if m' < n
+    -- or directly use P(n) if m' = n
+    rcases Decidable.eq_or_lt_of_le hm'_le_n with h_eq | h_lt
+    · -- Case m' = n: we already have P(n)
+      rw [h_eq]
+      exact ih hn_ge_m0
+    · -- Case m' < n: apply induction hypothesis
+      sorry
 
 /-- Exercise 2.2.6 (backwards induction) -/
 theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}  (hind: ∀ m, P (m++) → P m) (hn: P n) : ∀ m, m ≤ n → P m := by
-  sorry
+  intro m hm_le_n
+  -- We'll use induction on n to prove that for all m ≤ n, P(m) holds
+  revert hn
+  revert hm_le_n
+  revert m
+  revert n
+  apply induction
+  · -- Base case: n = 0
+    intro m hm_le_0 h0
+    -- m ≤ 0 means m = 0
+    have : m = 0 := by
+      have : m ≥ 0 := by use m; rw [zero_add]
+      exact ge_antisymm this hm_le_0
+    rw [this]
+    exact h0
+
+  · -- Inductive step: assume theorem holds for n, prove for n++
+    intro n ih
+    intro m hm_le_succ hn_succ
+    -- We have m ≤ n++ and P(n++)
+    -- By trichotomy, either m ≤ n or m = n++
+    rw [le_iff_lt_or_eq] at hm_le_succ
+    cases hm_le_succ with
+    | inl hm_lt_succ =>
+      -- Case m < n++, so m ≤ n
+      have hm_le_n : m ≤ n := by
+        -- From m < n++, we show m ≤ n
+        rcases trichotomous m n with h1 | h2 | h3
+        · exact le_of_lt h1
+        · rw [h2]
+        · -- m > n would imply m ≥ n++, contradicting m < n++
+          exfalso
+          have : m ≥ n++ := by
+            rw [gt_iff_lt] at h3
+            rw [lt_iff_succ_le] at h3
+            exact h3
+          exact (ne_of_lt _ _ hm_lt_succ) (ge_antisymm this (le_of_lt hm_lt_succ))
+      -- P(n) follows from P(n++) by the hypothesis
+      have hn : P n := hind n hn_succ
+      -- Apply induction hypothesis
+      exact ih m hm_le_n hn
+    | inr hm_eq_succ =>
+      -- Case m = n++
+      rw [hm_eq_succ]
+      exact hn_succ
 
 /-- Exercise 2.2.7 (induction from a starting point) -/
 theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m++)) : P n → ∀ m, m ≥ n → P m := by
-  sorry
+  intro hn m hm_ge_n
+  -- We'll use induction on m starting from n
+  -- The idea is to prove by induction that for all k ≥ 0, P(n + k)
 
+  -- First, express m as n + k for some k
+  obtain ⟨k, hk⟩ := hm_ge_n
+  rw [hk]
+
+  -- Now prove by induction on k that P(n + k)
+  revert hk
+  revert k
+  apply induction
+  · -- Base case: k = 0
+    intro hk
+    rw [add_zero] at hk
+    rw [← hk]
+    rw [add_zero, hk]
+    exact hn
+
+  · -- Inductive step: P(n + k) → P(n + k++)
+    intro k ih
+    intro ihk
+    sorry
 
 
 end Chapter2
