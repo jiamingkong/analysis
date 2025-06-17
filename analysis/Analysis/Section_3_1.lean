@@ -108,7 +108,15 @@ theorem SetTheory.Set.eq_empty_iff_forall_notMem {X:Set} : X = ∅ ↔ (∀ x, �
 
 /-- Empty set is unique -/
 theorem SetTheory.Set.empty_unique : ∃! (X:Set), ∀ x, x ∉ X := by
-  sorry
+  use ∅
+  constructor
+  · -- existence: empty set satisfies the property
+    exact not_mem_empty
+  · -- uniqueness: any other set with this property equals empty set
+    intro Y hY
+    apply ext
+    intro x
+    simp [not_mem_empty, hY x]
 
 /-- Lemma 3.1.5 (Single choice) -/
 lemma SetTheory.Set.nonempty_def {X:Set} (h: X ≠ ∅) : ∃ x, x ∈ X := by
@@ -157,21 +165,121 @@ theorem SetTheory.Set.mem_triple (x a b:Object) : x ∈ ({a,b,c}:Set) ↔ (x = a
 
 /-- Remark 3.1.8 -/
 theorem SetTheory.Set.singleton_uniq (a:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a := by
-  sorry
+  use {a}
+  constructor
+  . -- existence: singleton set satisfies the property
+    intro x; simp [mem_singleton]
+  . -- uniqueness: any other set with this property equals the singleton set
+    intro X hX
+    apply ext
+    intro x
+    simp [mem_singleton, hX x]
+    -- Note: this proof is written to follow the structure of the original text.
+    -- The `simp` tactic is used to simplify the goal to a form that can be solved by `ext`.
 
 /-- Remark 3.1.8 -/
-theorem SetTheory.Set.pair_uniq (a b:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a ∨ x = b := by sorry
+theorem SetTheory.Set.pair_uniq (a b:Object) : ∃! (X:Set), ∀ x, x ∈ X ↔ x = a ∨ x = b := by
+  use {a,b}
+  constructor
+  . -- existence: pair set satisfies the property
+    intro x; simp [mem_pair]
+  . -- uniqueness: any other set with this property equals the pair set
+    intro X hX
+    apply ext
+    intro x
+    simp [mem_pair, hX x]
+    -- Note: this proof is written to follow the structure of the original text.
+    -- The `simp` tactic is used to simplify the goal to a form that can be solved by `ext`.
 
 /-- Remark 3.1.8 -/
-theorem SetTheory.Set.pair_comm (a b:Object) : ({a,b}:Set) = {b,a} := by sorry
+theorem SetTheory.Set.pair_comm (a b:Object) : ({a,b}:Set) = {b,a} := by
+  -- this proof is written to follow the structure of the original text.
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_pair] at hx
+    rcases hx with case1 | case2
+    . rw [mem_pair]; tauto
+    rw [mem_pair]; tauto
+  intro hx
+  rw [mem_pair] at hx
+  rcases hx with case1 | case2
+  . rw [mem_pair]; tauto
+  rw [mem_pair]; tauto
 
 /-- Remark 3.1.8 -/
 theorem SetTheory.Set.pair_self (a:Object) : ({a,a}:Set) = {a} := by
-  sorry
+  -- this proof is written to follow the structure of the original text.
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_pair] at hx
+    rcases hx with case1 | case2
+    . rw [mem_singleton]; tauto
+    rw [mem_singleton]; tauto
+  intro hx
+  rw [mem_singleton] at hx
+  simp [hx]
 
 /-- Exercise 3.1.1 -/
 theorem SetTheory.Set.pair_eq_pair {a b c d:Object} (h: ({a,b}:Set) = {c,d}) : a = c ∧ b = d ∨ a = d ∧ b = c := by
-  sorry
+  -- Since {a,b} = {c,d}, by extensionality, they have the same elements
+  -- In particular, a ∈ {a,b} = {c,d}, so a = c or a = d
+  have ha : a ∈ ({a,b}:Set) := by simp
+  rw [h] at ha
+  simp at ha  -- ha : a = c ∨ a = d
+  -- Similarly, b ∈ {a,b} = {c,d}, so b = c or b = d
+  have hb : b ∈ ({a,b}:Set) := by simp
+  rw [h] at hb
+  simp at hb  -- hb : b = c ∨ b = d
+  -- Also, c ∈ {c,d} = {a,b}, so c = a or c = b
+  have hc : c ∈ ({c,d}:Set) := by simp
+  rw [←h] at hc
+  simp at hc  -- hc : c = a ∨ c = b
+  -- And d ∈ {c,d} = {a,b}, so d = a or d = b
+  have hd : d ∈ ({c,d}:Set) := by simp
+  rw [←h] at hd
+  simp at hd  -- hd : d = a ∨ d = b
+  -- Now we do case analysis
+  cases ha with
+  | inl hac => -- Case: a = c
+    cases hb with
+    | inl hbc => -- Case: a = c and b = c
+      -- Then a = b = c, so from hd we get d = a or d = b, hence d = c
+      -- So we have a = b = c = d, which means a = c and b = d
+      left
+      constructor
+      · exact hac
+      · -- We need to show b = d
+        -- We have a = c and b = c, so a = b
+        have hab : a = b := by rw [hac, hbc]
+        -- From hd: d = a ∨ d = b, and since a = b, we get d = a = b
+        cases hd with
+        | inl hda => rw [←hab, hda]
+        | inr hdb => exact hdb.symm
+    | inr hbd => -- Case: a = c and b = d
+      left
+      exact ⟨hac, hbd⟩
+  | inr had => -- Case: a = d
+    cases hb with
+    | inl hbc => -- Case: a = d and b = c
+      right
+      exact ⟨had, hbc⟩
+    | inr hbd => -- Case: a = d and b = d
+      -- Then a = b = d, so from hc we get c = a or c = b, hence c = d
+      -- So we have a = b = c = d, which means a = d and b = c
+      right
+      constructor
+      · exact had
+      · -- We need to show b = c
+        -- We have a = d and b = d, so a = b
+        have hab : a = b := by rw [had, hbd]
+        -- From hc: c = a ∨ c = b, and since a = b, we get c = a = b
+        cases hc with
+        | inl hca => rw [←hab, ←hca]
+        | inr hcb => exact hcb.symm
 
 abbrev SetTheory.Set.empty : Set := ∅
 abbrev SetTheory.Set.singleton_empty : Set := {empty.toObject}
@@ -179,27 +287,52 @@ abbrev SetTheory.Set.pair_empty : Set := {empty.toObject, singleton_empty.toObje
 
 /-- Exercise 3.1.2-/
 theorem SetTheory.Set.emptyset_neq_singleton : empty ≠ singleton_empty := by
-  sorry
+  intro h
+  -- singleton_empty contains empty.toObject
+  have : empty.toObject ∈ singleton_empty := by simp
+  -- If empty = singleton_empty, then empty.toObject ∈ empty
+  rw [←h] at this
+  -- But nothing is in the empty set, contradiction
+  exact not_mem_empty empty.toObject this
 
 /-- Exercise 3.1.2-/
-theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by sorry
+theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by
+  intro h
+  -- pair_empty contains empty.toObject
+  have : empty.toObject ∈ pair_empty := by simp
+  -- If empty = pair_empty, then empty.toObject ∈ empty
+  rw [←h] at this
+  -- But nothing is in the empty set, contradiction
+  exact not_mem_empty empty.toObject this
 
 /-- Exercise 3.1.2-/
 theorem SetTheory.Set.singleton_empty_neq_pair : singleton_empty ≠ pair_empty := by
-  sorry
+  sorry -- This proof is complex, skipping for now
 
 /-- Remark 3.1.11.  (These results can be proven either by a direct rewrite, or by using extensionality.) -/
-theorem SetTheory.Set.union_congr_left (A A' B:Set) (h: A = A') : A ∪ B = A' ∪ B := by sorry
+theorem SetTheory.Set.union_congr_left (A A' B:Set) (h: A = A') : A ∪ B = A' ∪ B := by
+  rw [h]
 
 /-- Remark 3.1.11.  (These results can be proven either by a direct rewrite, or by using extensionality.) -/
-theorem SetTheory.Set.union_congr_right (A B B':Set) (h: B = B') : A ∪ B = A ∪ B' := by sorry
+theorem SetTheory.Set.union_congr_right (A B B':Set) (h: B = B') : A ∪ B = A ∪ B' := by
+  rw [h]
 
 /-- Lemma 3.1.12 (Basic properties of unions) / Exercise 3.1.3 -/
 theorem SetTheory.Set.singleton_union_singleton (a b:Object) : ({a}:Set) ∪ ({b}:Set) = {a,b} := by
-  sorry
+  rfl  -- This is true by definition of the pair notation
 
 /-- Lemma 3.1.12 (Basic properties of unions) / Exercise 3.1.3 -/
-theorem SetTheory.Set.union_comm (A B:Set) : A ∪ B = B ∪ A := by sorry
+theorem SetTheory.Set.union_comm (A B:Set) : A ∪ B = B ∪ A := by
+  apply ext
+  intro x
+  simp [mem_union]
+  constructor
+  · intro h; cases h with
+    | inl ha => right; exact ha
+    | inr hb => left; exact hb
+  · intro h; cases h with
+    | inl hb => right; exact hb
+    | inr ha => left; exact ha
 
 /-- Lemma 3.1.12 (Basic properties of unions) / Exercise 3.1.3 -/
 theorem SetTheory.Set.union_assoc (A B C:Set) : (A ∪ B) ∪ C = A ∪ (B ∪ C) := by
@@ -217,19 +350,32 @@ theorem SetTheory.Set.union_assoc (A B C:Set) : (A ∪ B) ∪ C = A ∪ (B ∪ C
       rw [mem_union]; tauto
     have : x ∈ B ∪ C := by rw [mem_union]; tauto
     rw [mem_union]; tauto
-  sorry
+  . intro hx
+    rw [mem_union] at hx
+    rcases hx with case1 | case2
+    . rw [mem_union]; left; rw [mem_union]; tauto
+    rw [mem_union] at case2
+    rcases case2 with case2a | case2b
+    . rw [mem_union]; left; rw [mem_union]; tauto
+    rw [mem_union]; tauto
 
 /-- Proposition 3.1.27(c) -/
 theorem SetTheory.Set.union_self (A:Set) : A ∪ A = A := by
-  sorry
+  apply ext
+  intro x
+  simp [mem_union]
 
 /-- Proposition 3.1.27(a) -/
 theorem SetTheory.Set.union_empty (A:Set) : A ∪ ∅ = A := by
-  sorry
+  apply ext
+  intro x
+  simp [mem_union, not_mem_empty]
 
 /-- Proposition 3.1.27(a) -/
 theorem SetTheory.Set.empty_union (A:Set) : ∅ ∪ A = A := by
-  sorry
+  apply ext
+  intro x
+  simp [mem_union, not_mem_empty]
 
 theorem SetTheory.Set.triple_eq (a b c:Object) : {a,b,c} = ({a}:Set) ∪ {b,c} := by
   rfl
@@ -356,20 +502,96 @@ theorem SetTheory.Set.mem_sdiff (x:Object) (X Y:Set) : x ∈ (X \ Y) ↔ (x ∈ 
   exact (specification_axiom' (fun x ↦ x.val ∉ Y) ⟨ x, hX⟩ ).mpr hY
 
 /-- Proposition 3.1.27(d) / Exercise 3.1.6 -/
-theorem SetTheory.Set.inter_comm (A B:Set) : A ∩ B = B ∩ A := by sorry
+theorem SetTheory.Set.inter_comm (A B:Set) : A ∩ B = B ∩ A := by
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_inter] at hx
+    rcases hx with ⟨ hA, hB ⟩
+    rw [mem_inter]
+    constructor
+    . exact hB
+    exact hA
+  . intro hx
+    rw [mem_inter] at hx
+    rcases hx with ⟨ hB, hA ⟩
+    rw [mem_inter]
+    constructor
+    . exact hA
+    exact hB
 
 /-- Proposition 3.1.27(b) -/
-theorem SetTheory.Set.subset_union {A X: Set} (hAX: A ⊆ X) : A ∪ X = X := by sorry
+theorem SetTheory.Set.subset_union {A X: Set} (hAX: A ⊆ X) : A ∪ X = X := by
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_union] at hx
+    rcases hx with case1 | case2
+    . exact hAX x case1
+    exact case2
+  . intro hx
+    rw [mem_union]
+    right; exact hx
 
 /-- Proposition 3.1.27(b) -/
-theorem SetTheory.Set.union_subset {A X: Set} (hAX: A ⊆ X) : X ∪ A = X := by sorry
+theorem SetTheory.Set.union_subset {A X: Set} (hAX: A ⊆ X) : X ∪ A = X := by
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_union] at hx
+    rcases hx with case1 | case2
+    . exact case1
+    exact hAX x case2
+  . intro hx
+    rw [mem_union]
+    left; exact hx
 
 /-- Proposition 3.1.27(c) -/
 theorem SetTheory.Set.inter_self (A:Set) : A ∩ A = A := by
-  sorry
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_inter] at hx
+    rcases hx with ⟨ hA, _ ⟩
+    exact hA
+  . intro hx
+    rw [mem_inter]
+    constructor
+    . exact hx
+    exact hx
 
 /-- Proposition 3.1.27(e) -/
-theorem SetTheory.Set.inter_assoc (A B C:Set) : (A ∩ B) ∩ C = A ∩ (B ∩ C) := by sorry
+theorem SetTheory.Set.inter_assoc (A B C:Set) : (A ∩ B) ∩ C = A ∩ (B ∩ C) := by
+  -- this proof is written to follow the structure of the original text.
+  apply ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_inter] at hx
+    rcases hx with ⟨ hAB, hC ⟩
+    rw [mem_inter] at hAB
+    rcases hAB with ⟨ hA, hB ⟩
+    rw [mem_inter]
+    constructor
+    . exact hA
+    constructor
+    . exact hB
+    exact hC
+  . intro hx
+    rw [mem_inter] at hx
+    rcases hx with ⟨ hA, hBC ⟩
+    rw [mem_inter] at hBC
+    rcases hBC with ⟨ hB, hC ⟩
+    rw [mem_inter]
+    constructor
+    . exact hA
+    constructor
+    . exact hB
+    exact hC
 
 /-- Proposition 3.1.27(f) -/
 theorem  SetTheory.Set.inter_union_distrib_left (A B C:Set) : A ∩ (B ∪ C) = (A ∩ B) ∪ (A ∩ C) := sorry
