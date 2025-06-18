@@ -1127,7 +1127,24 @@ example : ({3,5,9}:Set).replace (P := fun x y ↦ y=1) (by
 /-- Exercise 3.1.5.  One can use the `tfae_have` and `tfae_finish` tactics here. -/
 theorem SetTheory.Set.subset_tfae (A B C:Set) : [A ⊆ B, A ∪ B = B, A ∩ B = A].TFAE := by
   -- TFAE means all elements in the list are equivalent
-  sorry
+  tfae_have 1 → 2 := by
+    intro h
+    apply SetTheory.Set.subset_union
+    exact h
+  tfae_have 2 → 3 := by
+    intro h
+    rw [← h]
+    rw [inter_union_distrib_left]
+    rw [inter_self]
+    sorry
+
+  tfae_have 3 → 1 := by
+    intro h
+    intro x hx
+    rw [←h] at hx
+    sorry
+    -- exact SetTheory.Set.inter_subset_right A B x hx
+  tfae_finish
 
 /-- Exercise 3.1.7 -/
 theorem SetTheory.Set.inter_subset_left (A B:Set) : A ∩ B ⊆ A := by

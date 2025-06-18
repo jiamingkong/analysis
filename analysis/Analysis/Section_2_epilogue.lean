@@ -88,7 +88,38 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   map_le_map_iff' := by
     intro n m
     simp [equivNat]
-    sorry
+    -- We need to prove: n.toNat ≤ m.toNat ↔ n ≤ m
+    -- Both orders are defined as ∃ d, larger = smaller + d
+    -- We use the fact that toNat preserves addition (proven in map_mul')
+    have add_toNat : ∀ a b : Chapter2.Nat, (a + b).toNat = a.toNat + b.toNat := by
+      intro a b
+      induction' a with a' ha'
+      . -- zero case: (zero + b).toNat = b.toNat
+        have zero_add_rfl : (zero + b).toNat = b.toNat := by
+          induction' b with m'
+          . rfl
+          . simp [succ_toNat]
+        simp [toNat, zero_add, zero_add_rfl]
+      . rw [succ_add, succ_toNat, succ_toNat, ha']
+        ring
+    constructor
+    · -- Forward: n.toNat ≤ m.toNat → n ≤ m
+      intro h
+      -- h : n.toNat ≤ m.toNat means ∃ d, m.toNat = n.toNat + d
+      rw [Nat.le_iff_exists_add] at h
+      obtain ⟨d, hd⟩ := h
+      -- Convert d back to Chapter2.Nat and show m = n + (d : Chapter2.Nat)
+      use (d : Chapter2.Nat)
+      apply equivNat.injective
+      simp [equivNat]
+      rw [add_toNat, hd]
+    · -- Reverse: n ≤ m → n.toNat ≤ m.toNat
+      intro h
+      -- h : n ≤ m means ∃ e : Chapter2.Nat, m = n + e
+      obtain ⟨e, he⟩ := h
+      rw [Nat.le_iff_exists_add]
+      use e.toNat
+      rw [← he, add_toNat]
 
 
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) : n.toNat ^ m.toNat = n^m := by
@@ -233,6 +264,66 @@ theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
 theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) :
     ∃! (a: P.Nat → P.Nat), a P.zero = c ∧ ∀ n, a (P.succ n) = f n (a n) := by
-  sorry
+  -- We prove uniqueness first, then existence follows from the axiom of choice
+
+  -- Uniqueness: any two functions satisfying the conditions are equal
+  have uniqueness : ∀ a1 a2 : P.Nat → P.Nat,
+    (a1 P.zero = c ∧ ∀ n, a1 (P.succ n) = f n (a1 n)) →
+    (a2 P.zero = c ∧ ∀ n, a2 (P.succ n) = f n (a2 n)) →
+    a1 = a2 := by
+    intro a1 a2 h1 h2
+    ext x
+    apply P.induction (fun x => a1 x = a2 x)
+    · -- Base case: a1 P.zero = a2 P.zero
+      rw [h1.1, h2.1]
+    · -- Inductive case: if a1 y = a2 y, then a1 (P.succ y) = a2 (P.succ y)
+      intro y hy
+      rw [h1.2, h2.2, hy]
+
+  -- Existence: we construct a function using the equivalence with ℕ
+  classical
+
+  -- Define helper function on natural numbers
+  let helper : ℕ → P.Nat :=
+    Nat.rec c (fun n acc => f (P.natCast n) acc)
+
+  -- Define our function using the surjectivity of natCast
+  let a : P.Nat → P.Nat := fun x =>
+    helper (Classical.choose (natCast_surjective P x))
+
+  use a
+  constructor
+  · -- Prove a satisfies the required properties
+    constructor
+    · -- a P.zero = c
+      unfold a
+      have zero_choice : Classical.choose (natCast_surjective P P.zero) = 0 := by
+        apply natCast_injective P
+        have spec := Classical.choose_spec (natCast_surjective P P.zero)
+        rw [spec]
+        -- natCast P 0 = P.zero by definition
+      rw [zero_choice]
+      -- helper 0 = c by definition of Nat.rec
+      rfl
+    · -- ∀ n, a (P.succ n) = f n (a n)
+      intro n
+      unfold a
+      sorry
+
+  · -- Uniqueness follows from our lemma
+    intro a' h'
+    have a_props : a P.zero = c ∧ ∀ n, a (P.succ n) = f n (a n) := by
+      constructor
+      · -- We proved this above
+        unfold a
+        have zero_choice : Classical.choose (natCast_surjective P P.zero) = 0 := by
+          apply natCast_injective P
+          have spec := Classical.choose_spec (natCast_surjective P P.zero)
+          rw [spec]
+        rw [zero_choice]
+        rfl
+      · -- This follows from the construction, but we used sorry above
+        sorry
+    sorry
 
 end PeanoAxioms
