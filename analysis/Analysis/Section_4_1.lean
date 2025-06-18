@@ -35,8 +35,13 @@ structure PreInt where
 instance PreInt.instSetoid : Setoid PreInt where
   r a b := a.minuend + b.subtrahend = b.minuend + a.subtrahend
   iseqv := {
-    refl := by sorry
-    symm := by sorry
+    refl := by
+      intro ⟨ a, b ⟩
+      simp [Setoid.r]
+    symm := by
+      intro ⟨ a, b ⟩ ⟨ c, d ⟩ h
+      simp at h
+      exact h.symm
     trans := by
       -- This proof is written to follow the structure of the original text.
       intro ⟨ a,b ⟩ ⟨ c,d ⟩ ⟨ e,f ⟩ h1 h2
@@ -159,7 +164,14 @@ example : 3 = 4 —— 1 := by
 /-- Definition 4.1.4 (Negation of integers) / Exercise 4.1.2 -/
 instance Int.instNeg : Neg Int where
   neg := Quotient.lift (fun ⟨ a, b ⟩ ↦ b —— a) (by
-    sorry)
+    intro ⟨ a, b ⟩ ⟨ c, d ⟩ h
+    simp at h
+    -- h : a + d = c + b
+    -- We need to show: b —— a = d —— c
+    -- This means: b + c = d + a
+    rw [Int.eq]
+    rw [Nat.add_comm b c, Nat.add_comm d a]
+    exact h.symm)
 
 theorem Int.neg_eq (a b:ℕ) : -(a —— b) = b —— a := rfl
 
@@ -230,18 +242,50 @@ instance Int.instCommMonoid : CommMonoid Int where
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instCommRing : CommRing Int where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
+  left_distrib := by
+    intro x y z
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, rfl ⟩ := eq_diff z
+    rw [mul_eq, add_eq, mul_eq, mul_eq, add_eq]
+    congr 1
+    · ring
+    · ring
+  right_distrib := by
+    intro x y z
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, rfl ⟩ := eq_diff z
+    rw [add_eq, mul_eq, mul_eq, mul_eq, add_eq]
+    congr 1
+    · ring
+    · ring
+  zero_mul := by
+    intro x
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    show (0 —— 0) * (a —— b) = (0 —— 0)
+    rw [mul_eq]
+    simp [eq]
+  mul_zero := by
+    intro x
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    show (a —— b) * (0 —— 0) = (0 —— 0)
+    rw [mul_eq]
+    simp [eq]
 
 /-- Definition of subtraction -/
 theorem Int.sub_eq (a b:Int) : a - b = a + (-b) := by rfl
 
-theorem Int.sub_eq_formal_sub (a b:ℕ) : (a:Int) - (b:Int) = a —— b := by sorry
+theorem Int.sub_eq_formal_sub (a b:ℕ) : (a:Int) - (b:Int) = a —— b := by
+  rw [Int.sub_eq]  -- a - b = a + (-b)
+  rw [Int.natCast_eq, Int.natCast_eq]  -- (a:Int) = a —— 0, (b:Int) = b —— 0
+  rw [Int.neg_eq]  -- -(b —— 0) = 0 —— b
+  rw [Int.add_eq]  -- (a —— 0) + (0 —— b) = (a + 0) —— (0 + b)
+  simp  -- Simplify a + 0 = a and 0 + b = b
 
 /-- Proposition 4.1.8 (No zero divisors) / Exercise 4.1.5 -/
-theorem Int.mul_eq_zero {a b:Int} (h: a * b = 0) : a = 0 ∨ b = 0 := by sorry
+theorem Int.mul_eq_zero {a b:Int} (h: a * b = 0) : a = 0 ∨ b = 0 := by
+  sorry
 
 /-- Corollary 4.1.9 (Cancellation law) / Exercise 4.1.6 -/
 theorem Int.mul_right_cancel₀ (a b c:Int) (h: a*c = b*c) (hc: c ≠ 0) : a = b := by sorry
