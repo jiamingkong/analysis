@@ -34,6 +34,7 @@ variable [SetTheory]
 /-- Axiom 3.8 (Universal specification) -/
 abbrev axiom_of_universal_specification : Prop :=
   ∀ P : Object → Prop, ∃ A : Set, ∀ x : Object, x ∈ A ↔ P x
+-- note: 这个公理的中文名就是“万有公理”，意思是说，给定任何一个判断合式公式P(x)，即，输入一个x，就告诉你True / False的公式，就能得到这个性质所对应的集合A。公式就可以定义集合。
 
 theorem Russells_paradox : ¬ axiom_of_universal_specification := by
   -- this proof is written to follow the structure of the original text.
@@ -49,6 +50,7 @@ theorem Russells_paradox : ¬ axiom_of_universal_specification := by
   have : P (Ω:Object) := by use Ω
   replace this := (hΩ _).mpr this
   contradiction
+-- note: 这是罗素悖论的证明。它的意思是说，假设有一个集合Ω，它包含了所有不包含自己的集合，那么Ω就会包含自己，这就导致了矛盾。
 
 /-- Axiom 3.9 (Regularity ) -/
 theorem SetTheory.Set.axiom_of_regularity {A:Set} (h: A ≠ ∅) :
@@ -62,6 +64,7 @@ theorem SetTheory.Set.axiom_of_regularity {A:Set} (h: A ≠ ∅) :
   simp at h'
   obtain ⟨ y, h1, h2 ⟩ := h'
   exact ⟨ y, h2, h1 ⟩
+-- note: 这是正则公理的证明。它的意思是说，给定一个非空集合A，存在一个元素x，使得对于任意集合S，x和S都是不相交的。不相交的意思是说两者的交集为空集。
 
 /--
   Exercise 3.2.1.  The spirit of the exercise is to establish these results without using either
@@ -76,6 +79,7 @@ theorem SetTheory.Set.emptyset_exists (h: axiom_of_universal_specification):
   intro hx
   have : False := (hX x).mp hx
   exact this
+-- note: 这是空集存在的证明。它的意思是说，存在一个集合X，使得对于任意元素x，都不属于X。这个证明使用了万有公理，即给定一个性质P(x)，就能得到一个集合A，使得对于任意元素x，x属于A当且仅当P(x)成立。在这里，我们选择了一个永远不成立的性质P(x) = False。
 
 /--
   Exercise 3.2.1.  The spirit of the exercise is to establish these results without using either
@@ -86,6 +90,7 @@ theorem SetTheory.Set.singleton_exists (h: axiom_of_universal_specification) (x:
   -- Use the axiom with the property "y = x"
   obtain ⟨X, hX⟩ := h (fun y ↦ y = x)
   use X
+-- note: 这是单元素集存在的证明。它的意思是说，存在一个集合X，使得对于任意元素y，y属于X当且仅当y等于x。这个证明使用了万有公理，即给定一个性质P(x)，就能得到一个集合A，使得对于任意元素x，x属于A当且仅当P(x)成立。在这里，我们选择了性质P(y) = (y = x)。
 
 /--
   Exercise 3.2.1.  The spirit of the exercise is to establish these results without using either
@@ -95,6 +100,7 @@ theorem SetTheory.Set.pair_exists (h: axiom_of_universal_specification) (x₁ x�
     ∃ (X:Set), ∀ y, y ∈ X ↔ y = x₁ ∨ y = x₂ := by
   -- Use the axiom with the property "y = x₁ ∨ y = x₂"
   exact h (fun y ↦ y = x₁ ∨ y = x₂)
+-- note: 这是二元组存在的证明。它的意思是说，存在一个集合X，使得对于任意元素y，y属于X当且仅当y等于x₁或y等于x₂。这个证明使用了万有公理，即给定一个性质P(x)，就能得到一个集合A，使得对于任意元素x，x属于A当且仅当P(x)成立。在这里，我们选择了性质P(y) = (y = x₁ ∨ y = x₂)。
 
 /--
   Exercise 3.2.1. The spirit of the exercise is to establish these results without using either
@@ -104,6 +110,7 @@ theorem SetTheory.Set.union_exists (h: axiom_of_universal_specification) (A B:Se
     ∃ (Z:Set), ∀ z, z ∈ Z ↔ z ∈ A ∨ z ∈ B := by
   -- Use the axiom with the property "z ∈ A ∨ z ∈ B"
   exact h (fun z ↦ z ∈ A ∨ z ∈ B)
+-- note: 这是并集存在的证明。它的意思是说，存在一个集合Z，使得对于任意元素z，z属于Z当且仅当z属于A或z属于B。这个证明使用了万有公理，即给定一个性质P(x)，就能得到一个集合A，使得对于任意元素x，x属于A当且仅当P(x)成立。在这里，我们选择了性质P(z) = (z ∈ A ∨ z ∈ B)。
 
 /--
   Exercise 3.2.1. The spirit of the exercise is to establish these results without using either
@@ -163,6 +170,11 @@ theorem SetTheory.Set.not_mem_self (A:Set) : (A:Object) ∉ A := by
       · rw [SetTheory.Set.mem_singleton]
     rw [hdisj_sing] at contra
     exact SetTheory.Set.not_mem_empty (A:Object) contra
+-- note: 证明给定一个集合A，A不能包含自己。我们来一步步说一下这个证明是怎么进行的。
+-- 首先，我们假设A包含自己，即A ∈ A。然后，我们使用正则公理，它告诉我们对于任何非空集合A，存在一个元素x，使得x和A是互不相交的。
+-- 接下来，我们考虑两种情况：第一种情况是x.val = A，这意味着A和A是互不相交的，这就导致了矛盾，因为A ∈ A ∩ A。
+-- 第二种情况是x.val ≠ A，这意味着x和A也是互不相交的，但是由于A包含自己，我们可以构造出一个矛盾。
+
 
 /-- Exercise 3.2.2 -/
 theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) ∉ A := by
