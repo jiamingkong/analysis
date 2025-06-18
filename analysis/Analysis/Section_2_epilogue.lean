@@ -50,17 +50,50 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
   map_add' := by
     intro n m
-    simp [equivNat]
-    sorry
+    induction' n with n ih
+    · -- zero case: (zero + m).toNat = zero.toNat + m.toNat
+      simp [equivNat]
+      have zero_add_rfl : (zero + m).toNat = m.toNat := by
+        induction' m with m'
+        . rfl
+        . simp [succ_toNat]
+      rw [zero_add_rfl]
+
+    · -- succ case: (succ n + m).toNat = (succ n).toNat + m.toNat
+      simp [equivNat]
+      simp [equivNat] at ih
+      rw [succ_add, succ_toNat, succ_toNat, ih]
+      ring
   map_mul' := by
     intro n m
     simp [equivNat]
+    induction' n with n ih
+    . simp [zero_mul]
+    . rw [succ_mul, succ_toNat]
+      -- We need: (n * m + m).toNat = (n.toNat + 1) * m.toNat
+      -- First show that toNat preserves addition
+      have add_toNat : ∀ a b : Chapter2.Nat, (a + b).toNat = a.toNat + b.toNat := by
+        intro a b
+        induction' a with a' ha'
+        . -- zero case: (zero + b).toNat = b.toNat
+          have zero_add_rfl : (zero + b).toNat = b.toNat := by
+            induction' b with m'
+            . rfl
+            . simp [succ_toNat]
+          simp [toNat, zero_add, zero_add_rfl]
+        . rw [succ_add, succ_toNat, succ_toNat, ha']
+          ring
+      rw [add_toNat, ih]
+      ring
+  map_le_map_iff' := by
+    intro n m
+    simp [equivNat]
     sorry
-  map_le_map_iff' := by sorry
 
-lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
-    n.toNat ^ m.toNat = n^m := by
-  sorry
+
+lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) : n.toNat ^ m.toNat = n^m := by
+  induction n
+  . simp [toNat, toNat]
 
 
 /-- The Peano axioms for an abstract type `Nat` -/
@@ -100,10 +133,38 @@ abbrev natCast (P : PeanoAxioms) : ℕ → P.Nat := fun n ↦ match n with
   | Nat.succ n => P.succ (natCast P n)
 
 theorem natCast_injective (P : PeanoAxioms) : Function.Injective P.natCast  := by
-  sorry
+  intro n m h
+  induction' n with n' ih generalizing m
+  · -- Base case: n = 0
+    cases' m with m'
+    · rfl  -- 0 = 0
+    · -- contradiction: natCast 0 = natCast (succ m'), but natCast 0 = zero and natCast (succ m') = succ (natCast m')
+      exfalso
+      simp [natCast] at h
+      exact P.succ_ne (natCast P m') h.symm
+  · -- Inductive case: n = succ n'
+    cases' m with m'
+    · -- contradiction: natCast (succ n') = natCast 0
+      exfalso
+      simp [natCast] at h
+      exact P.succ_ne (natCast P n') h
+    · -- natCast (succ n') = natCast (succ m') implies succ n' = succ m'
+      simp [natCast] at h
+      have : natCast P n' = natCast P m' := P.succ_cancel h
+      have : n' = m' := ih this
+      rw [this]
 
 theorem natCast_surjective (P : PeanoAxioms) : Function.Surjective P.natCast := by
-  sorry
+  intro x
+  -- We use induction on x
+  apply P.induction (fun x => ∃ n : ℕ, natCast P n = x)
+  · -- Base case: x = zero
+    use 0
+  · -- Inductive case: if there exists n such that natCast P n = y, then there exists m such that natCast P m = succ y
+    intro y hy
+    obtain ⟨n, hn⟩ := hy
+    use n + 1
+    simp [natCast, hn]
 
 /-- The notion of an equivalence between two structures obeying the Peano axioms -/
 class Equiv (P Q : PeanoAxioms) where
@@ -113,29 +174,60 @@ class Equiv (P Q : PeanoAxioms) where
 
 abbrev Equiv.symm (equiv : Equiv P Q) : Equiv Q P where
   equiv := equiv.equiv.symm
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by
+    have h := equiv.equiv_zero
+    rw [← h]
+    exact Equiv.symm_apply_apply equiv.equiv P.zero
+  equiv_succ n := by
+    have h := equiv.equiv_succ (equiv.equiv.symm n)
+    rw [Equiv.apply_symm_apply] at h
+    rw [← h]
+    rw [Equiv.symm_apply_apply]
 
 abbrev Equiv.trans (equiv1 : Equiv P Q) (equiv2 : Equiv Q R) : Equiv P R where
   equiv := equiv1.equiv.trans equiv2.equiv
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by
+    rw [Equiv.trans_apply]
+    rw [equiv1.equiv_zero]
+    rw [equiv2.equiv_zero]
+  equiv_succ n := by
+    simp [Equiv.trans_apply, equiv1.equiv_succ, equiv2.equiv_succ]
 
 /-- Note: I suspect that this construction is non-computable and requires classical logic. -/
 noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib.Nat P where
   equiv := {
     toFun := P.natCast
-    invFun := by sorry
-    left_inv := by sorry
-    right_inv := by sorry
+    invFun := fun x => by
+      -- Since natCast is surjective, we can use choice to pick a preimage
+      classical
+      exact Classical.choose (natCast_surjective P x)
+    left_inv := by
+      intro n
+      classical
+      exact natCast_injective P (Classical.choose_spec (natCast_surjective P (P.natCast n)))
+    right_inv := by
+      intro x
+      classical
+      exact Classical.choose_spec (natCast_surjective P x)
   }
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by rfl
+  equiv_succ n := by rfl
 
-noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by sorry
+noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q :=
+  (Equiv.fromNat P).symm.trans (Equiv.fromNat Q)
 
-theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
-    equiv1 = equiv2 := by
+theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) : equiv1 = equiv2 := by
+  -- We need to show that the underlying equivalences are equal
+  have h : equiv1.equiv = equiv2.equiv := by
+    ext x
+    -- We prove by induction on x that equiv1.equiv x = equiv2.equiv x
+    apply P.induction (fun x => equiv1.equiv x = equiv2.equiv x)
+    · -- Base case: x = zero
+      rw [equiv1.equiv_zero, equiv2.equiv_zero]
+    · -- Inductive case: x = succ y
+      intro y hy
+      rw [equiv1.equiv_succ, equiv2.equiv_succ, hy]
+  -- injectivity of the equivalence gives us the result
   sorry
 
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
