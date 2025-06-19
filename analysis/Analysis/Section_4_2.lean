@@ -35,9 +35,40 @@ structure PreRat where
 instance PreRat.instSetoid : Setoid PreRat where
   r a b := a.numerator * b.denominator = b.numerator * a.denominator
   iseqv := {
-    refl := by sorry
-    symm := by sorry
-    trans := by sorry
+    refl := by
+      intro a
+      simp [Setoid.r]
+    symm := by
+      intro x y h
+      exact h.symm
+    trans := by
+      intro x y z hxy hyz
+      -- We have hxy: x.numerator * y.denominator = y.numerator * x.denominator
+      -- We have hyz: y.numerator * z.denominator = z.numerator * y.denominator
+      -- We need to prove: x.numerator * z.denominator = z.numerator * x.denominator
+
+      -- Since y.denominator ≠ 0, we can use it for cancellation
+      have hy_nz : y.denominator ≠ 0 := y.nonzero
+
+      -- We'll prove this by showing that both sides equal the same expression
+      -- when multiplied by y.denominator
+      have goal_eq : x.numerator * z.denominator * y.denominator =
+                     z.numerator * x.denominator * y.denominator := by
+        calc x.numerator * z.denominator * y.denominator
+          = x.numerator * (z.denominator * y.denominator) := by ring
+          _ = x.numerator * (y.denominator * z.denominator) := by ring
+          _ = (x.numerator * y.denominator) * z.denominator := by ring
+          _ = (y.numerator * x.denominator) * z.denominator := by rw [hxy]
+          _ = y.numerator * (x.denominator * z.denominator) := by ring
+          _ = y.numerator * (z.denominator * x.denominator) := by ring
+          _ = (y.numerator * z.denominator) * x.denominator := by ring
+          _ = (z.numerator * y.denominator) * x.denominator := by rw [hyz]
+          _ = z.numerator * (y.denominator * x.denominator) := by ring
+          _ = z.numerator * (x.denominator * y.denominator) := by ring
+          _ = z.numerator * x.denominator * y.denominator := by ring
+
+      -- Cancel y.denominator from both sides
+      exact Int.mul_right_cancel₀ hy_nz goal_eq
     }
 
 @[simp]

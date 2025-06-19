@@ -79,7 +79,8 @@ theorem le_abs (x:ℚ) : -|x| ≤ x ∧ x ≤ |x|  := by sorry
 theorem abs_mul (x y:ℚ) : |x * y| = |x| * |y| := by sorry
 
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
-theorem abs_neg (x:ℚ) : |-x| = |x| := by sorry
+theorem abs_neg (x:ℚ) : |-x| = |x| := by
+  sorry
 
 /-- Proposition 4.3.3(e) / Exercise 4.3.1 -/
 theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by sorry
